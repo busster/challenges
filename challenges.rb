@@ -8,6 +8,8 @@ require 'sqlite3'
 
 db = SQLite3::Database.new('challenges.db')
 
+
+
 create_users_table = <<-SQL
 	CREATE TABLE IF NOT EXISTS users(
 	id INTEGER PRIMARY KEY,
@@ -18,7 +20,31 @@ create_users_table = <<-SQL
 	)
 SQL
 
+create_friends_table = <<-SQL
+	CREATE TABLE IF NOT EXISTS relationships(
+	user_one_id INTEGER,
+	user_two_id INTEGER,
+	status INTEGER,
+	action_user_id INTEGER,
+	FOREIGN KEY(user_one_id) REFERENCES users(id),
+	FOREIGN KEY(user_two_id) REFERENCES users(id),
+	FOREIGN KEY(action_user_id) REFERENCES users(id)
+	)
+SQL
+####status####
+# 0 - Pending
+# 1 - Accepted
+# 2 - Declined
+# 3 - Blocked
+##############
+
+
+#### CREATE TABLES ####
+
 db.execute(create_users_table)
+db.execute(create_relationships_table)
+
+#### CREATE TABLES ####
 
 def create_user(db, user_name, password, first_name, last_name)
 	db.execute("INSERT INTO users (user_name, password, first_name, last_name) VALUES (?, ?, ?, ?)",[user_name, password, first_name, last_name])
@@ -73,7 +99,8 @@ end
 line_break
 line_break
 
-loop do 
+valid = false
+while !valid
 	puts "Login: "
 	print "User name: "
 	user_name = gets.chomp
@@ -84,13 +111,18 @@ loop do
 	if !user[0]
 		puts "Sorry, the information you entered is incorrect. Try again."
 	else
-		break
+		valid = true
 	end
 
 	line_break
 
 end
 
+user = user[0]
+user_id, user_name, password, first_name, last_name = user
+
+puts "Hello, #{first_name}."
+puts "You're active challenges are: "
 
 user_cred = db.execute("SELECT * FROM users")
 p user_cred
