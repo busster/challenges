@@ -38,11 +38,20 @@ SQL
 # 3 - Blocked
 ##############
 
+create_friendkey_table = <<-SQL
+	CREATE TABLE IF NOT EXISTS friendkey(
+	status_id INTEGER,
+	status_name VARCHAR (255),
+	FOREIGN KEY(status_id) REFERENCES relationships(status)
+	)
+SQL
+
 
 #### CREATE TABLES ####
 
 db.execute(create_users_table)
 db.execute(create_relationships_table)
+db.execute(create_friendkey_table)
 
 #######################
 
@@ -76,14 +85,55 @@ def send_friend(db, current_user, other_user)
 	end
 end
 
+def accept_friend(db, user_id, friend_id)
+	if user_id < friend_id
+		user_one_id = user_id
+		user_two_id = friend_id
+	else
+		user_one_id = friend_id
+		user_two_id = user_id
+	end
+	db.execute("UPDATE relationships SET status=1, action_user_id=? WHERE user_one_id=? AND user_two_id=?",[user_id, user_one_id, user_two_id])
+end
+
+def decline_friend(db, user_id, friend_id)
+	if user_id < friend_id
+		user_one_id = user_id
+		user_two_id = friend_id
+	else
+		user_one_id = friend_id
+		user_two_id = user_id
+	end
+	db.execute("UPDATE relationships SET status=2, action_user_id=? WHERE user_one_id=? AND user_two_id=?",[user_id, user_one_id, user_two_id])
+end
+
+def get_friend_id(db, friend)
+	friend_cred = db.execute("SELECT * FROM users WHERE user_name=?", [friend])
+	friend_cred = friend_cred[0]
+	friend_id = friend_cred[0]
+end
+
+
 def print_friends_list(db, user_id)
-	friendslist = db.execute("SELECT * FROM relationships WHERE (user_one_id=? OR user_two_id=?) AND status=?", [user_id, user_id, 0])
-	if !friendslist
+	friendslist = db.execute("SELECT * FROM relationships WHERE (user_one_id=? OR user_two_id=?) AND status=?", [user_id, user_id, 1])
+	if friendslist
 		puts "Your friends:"
-		friendslist[0].each do |friend|
-			puts "#{friend}"
+		friendslist_index = 0
+		friendslist.each do |user|
+			index = user.find_index(user_id)
+			if index == 0
+				friend_id = friendslist[friendslist_index][1]
+			else
+				friend_id = friendslist[friendslist_index][0]
+			end
+
+			friend = db.execute("SELECT user_name FROM users WHERE id=?",[friend_id])
+			friend.flatten!
+			puts "#{friend[0]}"
+			friendslist_index += 1
 		end
 	end
+	line_break
 end
 
 
@@ -141,6 +191,7 @@ while !valid
 	end
 
 	line_break
+	line_break
 
 end
 
@@ -149,7 +200,11 @@ user_id, user_name, password, first_name, last_name = user
 
 menu = false
 while !menu
+
+############################################################################## MAIN MENU
 	puts "Hello, #{first_name}."
+
+	line_break
 	print_friends_list(db, user_id)
 	
 	puts "You're active challenges are: "
@@ -157,7 +212,8 @@ while !menu
 	print "Type 'c' to enter the challenges menu or 'f' to enter your friendslist or 'done' to exit program: "
 	menu_input = gets.chomp
 	if menu_input == 'c'
-		
+
+############################################################################## FRIENDS MENU		
 	elsif menu_input == 'f'
 		line_break
 		print_friends_list(db, user_id)
@@ -169,6 +225,9 @@ while !menu
 		input_toggle = false
 		while !input_toggle
 			input = gets.chomp
+			line_break
+
+############################################################################## FRIENDS ADD
 			if input == 'add'
 				input_toggle = true
 				valid_name = false
@@ -183,22 +242,55 @@ while !menu
 						puts "Sorry, that user name does not exist. Try again."
 					else
 						valid_name = true
-						friend_cred = friend_cred[0]
-						friend_id = friend_cred[0]
+						friend_id = get_friend_id(db, friend)
 						send_friend(db, user_id, friend_id)
 						puts "Friend request sent to #{friend}"
 						line_break
 						line_break
 					end
 				end
+
+############################################################################## FRIENDS RESPOND
 			elsif input == 'respond'
 				input_toggle = true
-				friend_requests = db.execute("SELECT * FROM relationships WHERE (user_one_id=? OR user_two_id=?) AND status=?", [user_id, user_id, 0])
+				puts "Your friend requests: "
+				friend_requests = db.execute("SELECT users.user_name, friendkey.status_name FROM relationships JOIN users, friendkey ON relationships.action_user_id=users.id AND relationships.status=friendkey.status_id WHERE (relationships.user_one_id=? OR relationships.user_two_id=?) AND relationships.status=?", [user_id, user_id, 0])
 				friend_requests.each do |friend|
-					friend_id = friend[3]
-					request_name = db.execute("SELECT user_name FROM users WHERE id=?", [friend_id])
-					request_name.flatten!
-					puts "#{request_name[0]} : Pending"
+					puts "#{friend[0]} : #{friend[1]}"
+				end
+				valid_name = false
+				while !valid_name
+					print "Enter a user name to respond to or 'done' to exit: "
+					friend = gets.chomp
+					friend_requests.flatten!
+					if friend_requests.include? friend
+						puts "Enter 'accept' or 'decline' to accept or decline the request or 'done' to exit."
+						action_request = gets.chomp
+
+############################################################################## FRIENDS ACCEPT
+						if action_request == 'accept'
+							friend_id = get_friend_id(db, friend)
+							accept_friend(db, user_id, friend_id)
+							puts "You are now friends with #{friend}!"
+							valid_name = true
+
+############################################################################## FRIENDS DECLINE
+						elsif action_request == 'decline'
+							friend_id = get_friend_id(db, friend)
+							decline_friend(db, user_id, friend_id)
+							puts "You have declined #{friend}'s request."
+							valid_name = true
+						elsif action_request == 'done'
+							valid_name = true
+						else
+							puts "Invalid option, Please try again."
+								
+						end
+					elsif friend == 'done'
+						valid_name = true
+					else
+						puts "Sorry that is not a valid user name."
+					end
 				end
 			end			
 		end
