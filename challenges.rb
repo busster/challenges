@@ -153,6 +153,8 @@ end
 puts "Welcome to Challenges! The best way to keep track of bets, personal improvement goals, and healthy competition."
 print "Are you a new user? Enter ('n' or hit enter to continue): "
 user_status = gets.chomp
+
+############################################################################## CREATE ACCOUNT
 if user_status == 'n'
 	puts "Create and account:"
 
@@ -183,6 +185,8 @@ end
 line_break
 line_break
 
+
+############################################################################## LOGIN
 valid = false
 while !valid
 	puts "Login: "
@@ -206,10 +210,10 @@ end
 user = user[0]
 user_id, user_name, password, first_name, last_name = user
 
-menu = false
-while !menu
 
 ############################################################################## MAIN MENU
+menu = false
+while !menu
 	puts "Hello, #{first_name}."
 
 	line_break
