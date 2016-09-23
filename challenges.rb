@@ -79,7 +79,7 @@ def send_friend(db, current_user, other_user)
 		user_one_id = other_user
 		user_two_id = current_user
 	end
-	check_request = db.execute("SELECT * FROM relationships WHERE user_one_id=? AND user_two_id=?",[user_one_id, user_two_id])
+	check_request = db.execute("SELECT * FROM relationships WHERE user_one_id=? AND user_two_id=? AND status=?",[user_one_id, user_two_id, 0])
 	if !check_request[0]
 		db.execute("INSERT INTO relationships (user_one_id, user_two_id, status, action_user_id) VALUES (?, ?, ?, ?)",[user_one_id, user_two_id, 0, current_user])
 	end
@@ -134,6 +134,10 @@ def print_friends_list(db, user_id)
 		end
 	end
 	line_break
+end
+
+def print_pending_requests(db, user_id)
+	
 end
 
 
@@ -216,7 +220,7 @@ while !menu
 ############################################################################## FRIENDS MENU		
 	elsif menu_input == 'f'
 		line_break
-		print_friends_list(db, user_id)
+		print_pending_requests(db, user_id)
 		line_break
 
 		puts "What action would you like to take: "
