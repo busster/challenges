@@ -70,7 +70,7 @@ def check_user_name_available(db, user_name)
 	return available
 end
 
-def send_friend(db, current_user, other_user)
+def send_friend(db, current_user, other_user, other_user_name)
 	action_user_id = current_user
 	if current_user < other_user
 		user_one_id = current_user
@@ -79,9 +79,12 @@ def send_friend(db, current_user, other_user)
 		user_one_id = other_user
 		user_two_id = current_user
 	end
-	check_request = db.execute("SELECT * FROM relationships WHERE user_one_id=? AND user_two_id=? AND status=?",[user_one_id, user_two_id, 0])
+	check_request = db.execute("SELECT * FROM relationships WHERE user_one_id=? AND user_two_id=? AND (status=0 OR status=1)",[user_one_id, user_two_id])
 	if !check_request[0]
 		db.execute("INSERT INTO relationships (user_one_id, user_two_id, status, action_user_id) VALUES (?, ?, ?, ?)",[user_one_id, user_two_id, 0, current_user])
+		puts "Friend request sent to #{other_user_name}"
+	else
+		puts "You are already friends, or have sent a request to #{other_user_name}."			
 	end
 end
 
@@ -137,7 +140,8 @@ def print_friends_list(db, user_id)
 end
 
 def print_pending_requests(db, user_id)
-	
+	friend_requests = db.execute("SELECT users.user_name, friendkey.status_name FROM relationships JOIN users, friendkey ON relationships.action_user_id=users.id AND relationships.status=friendkey.status_id WHERE (relationships.user_one_id=? OR relationships.user_two_id=?) AND relationships.status=?", [user_id, user_id, 0])
+	puts "You have #{friend_requests.length} friend requests."
 end
 
 
@@ -237,7 +241,7 @@ while !menu
 				valid_name = false
 				while !valid_name
 					line_break
-					print "Who would you like to send a friend request to ('done' to exit): "
+					print "Enter the user name of the friend you would like to send a friend request to ('done' to exit): "
 					friend = gets.chomp
 					friend_cred = db.execute("SELECT * FROM users WHERE user_name=?", [friend])
 					if friend == 'done'
@@ -247,8 +251,7 @@ while !menu
 					else
 						valid_name = true
 						friend_id = get_friend_id(db, friend)
-						send_friend(db, user_id, friend_id)
-						puts "Friend request sent to #{friend}"
+						send_friend(db, user_id, friend_id, friend)
 						line_break
 						line_break
 					end
