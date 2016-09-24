@@ -35,7 +35,7 @@ SQL
 # 0 - Pending
 # 1 - Accepted
 # 2 - Declined
-# 3 - Blocked
+# 3 - Blocked         NOT IMPLIMENTED YET
 ##############
 
 create_friendkey_table = <<-SQL
@@ -46,12 +46,33 @@ create_friendkey_table = <<-SQL
 	)
 SQL
 
+create_challenges_table = <<-SQL
+	CREATE TABLE IF NOT EXISTS challenges(
+	id INTEGER PRIMARY KEY,
+	description VARCHAR(255),
+	completed BOOLEAN
+	)
+SQL
+
+create_users_challenges_table = <<-SQL
+	CREATE TABLE IF NOT EXISTS users_challenges(
+	user_one_id INTEGER,
+	user_two_id INTEGER,
+	challenges_id INTEGER,
+	FOREIGN KEY(user_one_id) REFERENCES users(id),
+	FOREIGN KEY(user_two_id) REFERENCES users(id),
+	FOREIGN KEY(challenges_id) REFERENCES challenges(id)
+	)
+SQL
+
 
 #### CREATE TABLES ####
 
 db.execute(create_users_table)
 db.execute(create_relationships_table)
 db.execute(create_friendkey_table)
+db.execute(create_challenges_table)
+db.execute(create_users_challenges_table)
 
 #######################
 
@@ -69,6 +90,8 @@ def check_user_name_available(db, user_name)
 	end
 	return available
 end
+
+###################################################
 
 def send_friend(db, current_user, other_user, other_user_name)
 	action_user_id = current_user
@@ -144,11 +167,50 @@ def print_pending_requests(db, user_id)
 	puts "You have #{friend_requests.length} friend requests."
 end
 
+###################################################
+
+def create_challenge(db, description, challenge_to)
+	completed = "false"
+	db.execute("INSERT INTO challenges (description, completed) VALUES (?, ?)",[description, completed])
+	challenge_pk = db.execute("SELECT last_insert_rowid()")
+
+	participant_id = []
+	challenge_to.each do |participant|
+		id = get_friend_id(db, participant)
+		participant_id << id
+	end
+	if participant_id.length < 2
+		user_one_id = participant_id[0]
+		user_two_id = participant_id[0]
+		db.execute("INSERT INTO users_challenges (user_one_id, user_two_id, challenges_id) VALUES (?, ?, ?)",[user_one_id, user_two_id, challenge_pk])
+	else
+		times = participant_id.length - 1
+		times.times do |n|
+			user_id = participant_id[0]
+			friend_id = participant_id[n + 1]
+
+			if user_id < friend_id
+				user_one_id = user_id
+				user_two_id = friend_id
+			else
+				user_one_id = friend_id
+				user_two_id = user_id
+			end
+			db.execute("INSERT INTO users_challenges (user_one_id, user_two_id, challenges_id) VALUES (?, ?, ?)",[user_one_id, user_two_id, challenge_pk])
+		end
+	end
+
+end
+
+###################################################
 
 def line_break
 	puts "-" * 50
 end
 
+############################################################################## DRIVER CODE
+############################################################################################
+############################################################################################
 
 puts "Welcome to Challenges! The best way to keep track of bets, personal improvement goals, and healthy competition."
 print "Are you a new user? Enter ('n' or hit enter to continue): "
@@ -223,7 +285,41 @@ while !menu
 
 	print "Type 'c' to enter the challenges menu or 'f' to enter your friendslist or 'done' to exit program: "
 	menu_input = gets.chomp
+############################################################################## CHALLENGES MENU	
 	if menu_input == 'c'
+		line_break
+		puts "What action would you like to take: "
+		print "'create' a challenge, 'mark' a challenge complete, 'done' to exit: "
+		input_toggle = false
+		while !input_toggle
+			input = gets.chomp
+			line_break
+
+############################################################################## CHALLENGES CREATE
+			if input == 'create'
+				participants = []
+				participants << user_name
+				puts "Enter the challenge description ('done' to exit): "
+				done = false
+				description = gets.chomp
+				while !done
+					if description == 'done'
+						done = true
+					else
+						puts "Enter each user name involved in the challenge (hit enter after each name, enter 'done' to stop, or if you are the only user involved): "
+						name = gets.chomp
+						if name == 'done'
+							done = true
+						else
+							participants << name
+						end
+					end
+				end
+				create_challenge(db, description, participants)
+				input_toggle = true
+
+			end
+		end
 
 ############################################################################## FRIENDS MENU		
 	elsif menu_input == 'f'
@@ -232,7 +328,7 @@ while !menu
 		line_break
 
 		puts "What action would you like to take: "
-		print "'add' a friend, 'respond' to a request, 'block' a friend, 'done' to exit: "
+		print "'add' a friend, 'respond' to a request, 'done' to exit: "
 
 		input_toggle = false
 		while !input_toggle
