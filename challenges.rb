@@ -205,7 +205,7 @@ def print_challenges_list(db, user_id)
 	challenges_list = db.execute("SELECT challenges.description, challenges.completed, users.user_name FROM users_challenges JOIN users, challenges ON (users_challenges.user_one_id=users.id OR users_challenges.user_two_id=users.id) AND users_challenges.challenges_id=challenges.id WHERE users.id=?;", [user_id])
 	challenges_list.flatten!
 	puts "Challenge: #{challenges_list[0]}, Completed: #{challenges_list[1]}, Participants: #{challenges_list[2]}"
-end 
+end
 
 ###################################################
 
