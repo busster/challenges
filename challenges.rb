@@ -199,7 +199,12 @@ def create_challenge(db, description, challenge_to)
 			db.execute("INSERT INTO users_challenges (user_one_id, user_two_id, challenges_id) VALUES (?, ?, ?)",[user_one_id, user_two_id, challenge_pk])
 		end
 	end
+end
 
+def print_challenges_list(db, user_id)
+	challenges_list = db.execute("SELECT challenges.description, challenges.completed, users.user_name FROM users_challenges JOIN users, challenges ON (users_challenges.user_one_id=users.id OR users_challenges.user_two_id=users.id) AND users_challenges.challenges_id=challenges.id WHERE users.id=?;", [user_id])
+	challenges_list.flatten!
+	puts "Challenge: #{challenges_list[0]}, Completed: #{challenges_list[1]}, Participants: #{challenges_list[2]}"
 end
 
 ###################################################
@@ -282,6 +287,7 @@ while !menu
 	print_friends_list(db, user_id)
 	
 	puts "You're active challenges are: "
+	print_challenges_list(db, user_id)
 
 	print "Type 'c' to enter the challenges menu or 'f' to enter your friendslist or 'done' to exit program: "
 	menu_input = gets.chomp
